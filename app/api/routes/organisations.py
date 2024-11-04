@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, status, Depends
 from sqlmodel import select, Session
+from typing import List
 
 from app.db import get_db
 from app.models import Location, Organisation, CreateOrganisation, CreateLocation
@@ -57,11 +58,13 @@ def create_location(create_location: CreateLocation, session: Session = Depends(
     return location
 
 
-@router.get("/{organisation_id}/locations")
-def get_organisation_locations(organisation_id: int, session: Session = Depends(get_db)):
-    location_ids = session.exec(select(Location.id).where(Location.organisation_id==organisation_id)).all()
-    result = []
-    for location_id in location_ids:
-        location = session.exec(select(Location).where(Location.id == location_id)).one()
-        result.append({"location_name": location.location_name, "location_longitude": location.longitude, "location_latitude": location.latitude })
-    return result
+@router.get("/{organisation_id}/locations", response_model=List[Location])
+def get_organisation_locations(organisation_id: int, session: Session = Depends(get_db)) -> List[Location]:
+    organisation = session.get(Organisation, organisation_id)
+    if not organisation:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Organisation with id {organisation_id} not found"
+        )
+
+    return organisation.locations
